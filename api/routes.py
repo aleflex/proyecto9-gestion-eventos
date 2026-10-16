@@ -171,6 +171,39 @@ def filtrar_por_fecha(fecha: str = Path(..., pattern=r"^\d{4}-\d{2}-\d{2}$", des
 
 
 # ---------------------------------------------------------------------------
+# RESUMEN GENERAL Y ESTADÍSTICAS DEL SISTEMA
+# ---------------------------------------------------------------------------
+@router.get(
+    "/estadisticas/resumen",
+    summary="Estadísticas generales de eventos",
+    description="Retorna el balance global de eventos registrados, capacidad total, asistentes confirmados y desglose por estado."
+)
+def obtener_estadisticas_eventos():
+    collection = get_eventos_collection()
+    eventos = list(collection.find({}))
+    total_eventos = len(eventos)
+    capacidad_total = sum(int(e.get("capacidad", 0)) for e in eventos)
+    total_asistentes = sum(len(e.get("asistentes", [])) for e in eventos)
+
+    estados = {}
+    categorias = {}
+    for e in eventos:
+        est = str(e.get("estado", "activo")).lower()
+        cat = str(e.get("categoria", "general")).capitalize()
+        estados[est] = estados.get(est, 0) + 1
+        categorias[cat] = categorias.get(cat, 0) + 1
+
+    return {
+        "total_eventos": total_eventos,
+        "capacidad_total": capacidad_total,
+        "total_asistentes_registrados": total_asistentes,
+        "cupos_disponibles_globales": max(0, capacidad_total - total_asistentes),
+        "eventos_por_estado": estados,
+        "eventos_por_categoria": categorias
+    }
+
+
+# ---------------------------------------------------------------------------
 # 3. CONSULTAR UN EVENTO POR SU IDENTIFICADOR (_id)
 # ---------------------------------------------------------------------------
 @router.get(

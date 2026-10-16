@@ -340,3 +340,29 @@ def test_validaciones_errores():
     # ObjectId con formato válido pero no existente -> 404
     res_404 = client.get("/api/v1/eventos/507f1f77bcf86cd799439011")
     assert res_404.status_code == 404
+
+
+def test_estadisticas_resumen():
+    """Verifica el endpoint de estadísticas y resumen del sistema."""
+    mock_collection.insert_one({
+        "nombre": "Evento Estadistica A",
+        "descripcion": "Descripción detallada del evento A para estadísticas.",
+        "categoria": "Ciencia",
+        "fecha": "2026-11-01",
+        "hora": "09:00",
+        "capacidad": 100,
+        "ubicacion": "Auditorio A",
+        "estado": "activo",
+        "asistentes": [{"nombre": "Juan", "contacto": "juan@test.com", "fecha_registro": "2026-10-16 10:00:00"}],
+        "organizador": {"nombre": "Org A", "contacto": "a@test.com"}
+    })
+
+    response = client.get("/api/v1/eventos/estadisticas/resumen")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_eventos"] == 1
+    assert data["capacidad_total"] == 100
+    assert data["total_asistentes_registrados"] == 1
+    assert data["cupos_disponibles_globales"] == 99
+    assert data["eventos_por_estado"]["activo"] == 1
+    assert data["eventos_por_categoria"]["Ciencia"] == 1
