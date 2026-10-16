@@ -1,0 +1,116 @@
+# Nombre del workflow: es el que aparece en la pestaña "Actions" de GitHub.
+name: CI
+
+# ---------------------------------------------------------------------------
+# CUÁNDO SE EJECUTA
+# ---------------------------------------------------------------------------
+on:
+  # Cuando se abre o se actualiza un Pull Request cuyo destino sea main o develop.
+  # Es la verificación "antes de integrar": el PR muestra ✓ o ✗ según el resultado.
+  # Procure que el nombre de las ramas tenga el mismo nombre que su rama principal y desarrollo.
+  pull_request:
+    branches: [main, dev]
+
+  # Cuando se hace push directamente a main o develop (incluye el merge de un PR).
+  # Comprueba que el código ya integrado sigue funcionando.
+  push:
+    branches: [main, dev]
+
+# ---------------------------------------------------------------------------
+# CONTROL DE EJECUCIONES DUPLICADAS
+# ---------------------------------------------------------------------------
+# Si subes un commit nuevo a la misma rama o PR mientras el CI aún corre,
+# cancela la ejecución anterior (ya quedó desactualizada) y ahorra minutos.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# PERMISOS
+# ---------------------------------------------------------------------------
+# Principio de mínimo privilegio: el workflow solo puede LEER el repositorio.
+# No necesita escribir nada (no publica, no comenta, no hace commits).
+permissions:
+  contents: read
+
+# ---------------------------------------------------------------------------
+# TRABAJOS (jobs)
+# ---------------------------------------------------------------------------
+jobs:
+  build:
+    # Nombre visible del check en el PR. Con la matriz se generan dos checks:
+    # "Build (Python 3.10)" y "Build (Python 3.12)". Esos son los nombres que
+    # debes seleccionar en la regla de protección de ramas.
+    name: Build (Python ${{ matrix.python-version }})
+
+    # Máquina virtual de GitHub donde corre el job (Linux, gratuita).
+    runs-on: ubuntu-latest
+
+    # Si el job tarda más de 10 minutos se corta (evita que se quede colgado).
+    timeout-minutes: 10
+
+    # Ejecuta el mismo job una vez por cada versión de Python de la lista:
+    # 3.10 es la versión mínima soportada y 3.12 una más reciente.
+    strategy:
+      # Si falla una versión, deja que la otra termine para ver el resultado
+      # completo en lugar de cancelarla.
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12.3"]
+
+    # Pasos del job, en orden. Si uno falla, los siguientes no se ejecutan
+    # y el check queda en rojo.
+    steps:
+      # Paso 1: descarga el código del repositorio (de la rama o PR que disparó el CI)
+      # a la máquina virtual. Sin esto, la máquina estaría vacía.
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # Paso 2: instala la versión de Python indicada por la matriz.
+      - name: Configurar Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          # Guarda en caché los paquetes descargados por pip para acelerar
+          # las siguientes ejecuciones. La caché se renueva cuando cambia
+          # requirements.txt.
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # Paso 3: instala FastAPI, Uvicorn, PyMongo y pydantic-settings.
+      # Si una dependencia no existe o es incompatible, falla aquí.
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      # Paso 4: "compila" los archivos .py del proyecto (main.py y sus carpetas).
+      # Se listan las carpetas a propósito: así no se compila venv/ ni otras
+      # carpetas que no son código de la aplicación.
+      - name: Verificar que el código compila
+        run: python -m compileall -q main.py api core schemas utils
+
+      # Paso 5: importa la aplicación como lo haría uvicorn al arrancar.
+      - name: Verificar que la aplicación arranca (importa y registra rutas)
+        # En CI no existe el archivo .env (está en .gitignore), así que las
+        # variables que exige core/config.py se definen aquí con valores de
+        # prueba. No son credenciales reales: MongoClient no se conecta al
+        # importar, solo al ejecutar la primera consulta.
+        env:
+          APP_NAME: Gestor de Tareas
+          APP_VERSION: 1.0.0
+          API_V1_PREFIX: /api/v1
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DB: gestor_tareas_ci
+          MONGODB_COLLECTION: tareas
+        run: |
+          python - <<'PY'
+          from main import app
+          rutas = sorted(
+              f"{','.join(sorted(r.methods))} {r.path}"
+              for r in app.routes
+              if hasattr(r, "methods")
+          )
+          print(f"Aplicación cargada correctamente: {len(rutas)} rutas")
+          for ruta in rutas:
+              print("  ", ruta)
+          PY
