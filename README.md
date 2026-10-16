@@ -2,7 +2,7 @@
 
 > API REST moderna, escalable y robusta desarrollada con **FastAPI** y **MongoDB**, diseñada para la administración integral de eventos, control de fechas, ubicaciones, aforos, estados y registro de participantes.
 
-[![CI Pipeline](https://github.com/gtorrico-fs/task-manager-API/actions/workflows/ci.yml/badge.svg)](https://github.com)
+[![CI Pipeline](https://github.com/aleflex/proyecto9-gestion-eventos/actions/workflows/ci.yml/badge.svg)](https://github.com/aleflex/proyecto9-gestion-eventos/actions)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Single%20Collection-green.svg?logo=mongodb)](https://www.mongodb.com/)
