@@ -66,20 +66,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.middleware("http")
-async def vercel_path_rewrite_middleware(request: Request, call_next):
-    """
-    Compatibilidad con el sistema de rewrites de Vercel.
-    Si Vercel reescribe el destino interno a /api/index.py, restauramos el path original
-    proporcionado por Vercel en la cabecera 'x-matched-path'.
-    """
-    matched_path = request.headers.get("x-matched-path")
-    if matched_path and request.scope.get("path") in ["/api/index.py", "/api/index"]:
-        request.scope["path"] = matched_path
-    response = await call_next(request)
-    return response
-
 # Inclusión del Router de Eventos con el prefijo configurado (por defecto /api/v1)
 app.include_router(eventos_router, prefix=settings.API_V1_PREFIX)
 
@@ -101,28 +87,6 @@ for r in list(app.routes):
                             include_in_schema=False
                         )
                     )
-
-
-@app.get(
-    "/api/index.py",
-    include_in_schema=False
-)
-@app.get(
-    "/api/index",
-    include_in_schema=False
-)
-@app.get(
-    "/api",
-    include_in_schema=False
-)
-def vercel_debug(request: Request):
-    return {
-        "mensaje": "Vercel endpoint alcanzado",
-        "path": request.url.path,
-        "original_url": str(request.url),
-        "headers": dict(request.headers),
-        "rutas_disponibles": [r.path for r in app.routes if hasattr(r, "path")]
-    }
 
 
 @app.get(
