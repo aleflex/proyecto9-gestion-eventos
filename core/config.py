@@ -1,5 +1,5 @@
 import os
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,7 +21,8 @@ class Settings(BaseSettings):
         description="Prefijo de rutas para la versión 1 de la API"
     )
     MONGODB_URI: str = Field(
-        default="mongodb://localhost:27017",
+        default="mongodb+srv://Vercel-Admin-Proyect-event-management-system-APT:FbWlSNeZenFsBkda@proyect-event-managemen.hyminli.mongodb.net/?retryWrites=true&w=majority",
+        validation_alias=AliasChoices("MONGODB_URI", "MONGODB_URL", "DATABASE_URL", "MONGO_URL"),
         description="URI de conexión a la base de datos MongoDB"
     )
     MONGODB_DB: str = Field(
